@@ -1,0 +1,7 @@
+Waiter: Good evening. Are you ready to order?
+Customer: Yes, please. I would like the soup and a salad.
+Waiter: And for your main course?
+Customer: I will have the chicken, please.
+Waiter: Would you like anything to drink?
+Customer: Just water, thank you.
+Waiter: I will bring that right away.

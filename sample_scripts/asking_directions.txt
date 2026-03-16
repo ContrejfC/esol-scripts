@@ -1,0 +1,6 @@
+Tourist: Excuse me, where is the train station?
+Local: Go straight and turn left at the bank.
+Tourist: Thank you. Is it far?
+Local: No, it is about five minutes on foot.
+Tourist: Great. Thanks for your help!
+Local: You are welcome.
