@@ -25,7 +25,10 @@ def _style_for_speaker(speaker: str, assignments: list[VoiceAssignment], global_
     return global_style
 
 
-def generate_audio(request: GenerateAudioRequest) -> tuple[str, str | None]:
+def generate_audio(
+    request: GenerateAudioRequest,
+    override_elevenlabs_api_key: str | None = None,
+) -> tuple[str, str | None]:
     """
     Generate TTS for each line, merge with ffmpeg, save final MP3.
     Returns (audio_id, error_message).
@@ -35,7 +38,7 @@ def generate_audio(request: GenerateAudioRequest) -> tuple[str, str | None]:
     voice_assignments = request.voice_assignments
     global_style = request.global_style
     announce_names = request.announce_names
-    tts = get_tts_provider()
+    tts = get_tts_provider(override_elevenlabs_api_key=override_elevenlabs_api_key)
     voices = tts.list_voices()
     valid_voice_ids = {v["id"] for v in voices} if voices else set()
     narrator_voice_id = tts.narrator_voice_id()
