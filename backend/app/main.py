@@ -20,14 +20,10 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        # Production frontend (Vercel)
-        "https://esol-scripts.vercel.app",
-    ],
+    # In this project we only expose non-sensitive endpoints and TTS
+    # happens server-side with secret keys, so it's acceptable to allow
+    # all origins to keep deployment simple (Vercel, localhost, etc.).
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
