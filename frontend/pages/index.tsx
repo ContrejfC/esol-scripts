@@ -23,6 +23,8 @@ import type { ParsedScript, VoiceOption, VoiceAssignment, ReadingStyle } from ".
 
 type InputMode = "pdf" | "paste";
 
+const STATS_KEY_STORAGE = "esol_stats_secret";
+
 /** User-facing line when /health succeeds — avoids implying Vercel uses your laptop. */
 function connectedApiMessage(): string {
   const base = getApiBase();
@@ -74,17 +76,51 @@ export default function HomePage() {
   const [announceNames, setAnnounceNames] = useState(true);
   const [elevenLabsKey, setElevenLabsKey] = useState("");
   const [appActivity, setAppActivity] = useState<AppActivityStats | null>(null);
+  const [statsSecretInput, setStatsSecretInput] = useState("");
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     checkConnection().then(setConnectionStatus);
   }, []);
 
   useEffect(() => {
+    void recordPageView();
+  }, []);
+
+  useEffect(() => {
     void (async () => {
-      await recordPageView();
-      const s = await getAppStats();
+      if (typeof window === "undefined") return;
+      const k = sessionStorage.getItem(STATS_KEY_STORAGE);
+      if (!k) return;
+      const s = await getAppStats(k);
       setAppActivity(s);
     })();
+  }, []);
+
+  const refreshPrivateStats = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const k = sessionStorage.getItem(STATS_KEY_STORAGE);
+    if (!k) return;
+    const s = await getAppStats(k);
+    setAppActivity(s);
+  }, []);
+
+  const handleUnlockStats = useCallback(async () => {
+    setStatsError(null);
+    const s = await getAppStats(statsSecretInput);
+    if (!s) {
+      setStatsError("Could not load stats. Wrong secret or server STATS_SECRET not set.");
+      return;
+    }
+    sessionStorage.setItem(STATS_KEY_STORAGE, statsSecretInput.trim());
+    setStatsSecretInput("");
+    setAppActivity(s);
+  }, [statsSecretInput]);
+
+  const handleLockStats = useCallback(() => {
+    if (typeof window !== "undefined") sessionStorage.removeItem(STATS_KEY_STORAGE);
+    setAppActivity(null);
+    setStatsError(null);
   }, []);
 
   useEffect(() => {
@@ -214,7 +250,7 @@ export default function HomePage() {
       });
       if (res.success && res.audio_id) {
         setAudioId(res.audio_id);
-        getAppStats().then(setAppActivity);
+        void refreshPrivateStats();
       } else {
         setError(res.error ?? "Generation failed");
       }
@@ -224,7 +260,7 @@ export default function HomePage() {
       setLoading(false);
       isGeneratingRef.current = false;
     }
-  }, [script, assignments, globalStyle, announceNames]);
+  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, refreshPrivateStats]);
 
   const speakers = script ? uniqueSpeakersFromLines(script.lines) : [];
 
@@ -359,14 +395,56 @@ export default function HomePage() {
         </section>
       )}
 
-      {appActivity && (
-        <div className="fixed bottom-3 left-3 max-w-sm rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-600 shadow-sm">
-          <span className="font-semibold text-slate-800">App activity</span> (this server run):{" "}
-          {appActivity.page_views_total} page loads · {appActivity.unique_visitors_today} visitors today
-          (by IP) · {appActivity.audio_generations_completed} audio files generated. Resets when the host
-          restarts.
-        </div>
-      )}
+      <div className="fixed bottom-3 left-3 z-10 max-w-sm rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs text-slate-600 shadow-sm">
+        <details>
+          <summary className="cursor-pointer select-none font-semibold text-slate-800">
+            Site metrics
+          </summary>
+          <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+            {!appActivity ? (
+              <>
+                <p className="text-slate-500">
+                  Enter the same <code className="rounded bg-slate-100 px-0.5">STATS_SECRET</code> you set
+                  on the server (e.g. Render environment).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    type="password"
+                    value={statsSecretInput}
+                    onChange={(e) => setStatsSecretInput(e.target.value)}
+                    placeholder="Stats secret"
+                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleUnlockStats()}
+                    className="rounded bg-slate-700 px-2 py-1 text-white hover:bg-slate-800"
+                  >
+                    Unlock
+                  </button>
+                </div>
+                {statsError && <p className="text-red-600">{statsError}</p>}
+              </>
+            ) : (
+              <>
+                <p>
+                  <span className="font-semibold text-slate-800">This server run:</span>{" "}
+                  {appActivity.page_views_total} page loads · {appActivity.unique_visitors_today} visitors
+                  today (by IP) · {appActivity.audio_generations_completed} audio files generated.
+                </p>
+                <p className="text-slate-500">Counters reset when the host restarts.</p>
+                <button
+                  type="button"
+                  onClick={handleLockStats}
+                  className="text-slate-600 underline hover:text-slate-900"
+                >
+                  Lock and hide on this browser
+                </button>
+              </>
+            )}
+          </div>
+        </details>
+      </div>
 
       {usage && usage.usage.character_limit !== undefined && (
         <div className="fixed bottom-3 right-3 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-700 shadow-sm">

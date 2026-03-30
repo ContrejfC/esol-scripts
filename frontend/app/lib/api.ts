@@ -154,9 +154,12 @@ export type AppActivityStats = {
   audio_generations_completed: number;
 };
 
-export async function getAppStats(): Promise<AppActivityStats | null> {
+export async function getAppStats(secret: string): Promise<AppActivityStats | null> {
+  if (!secret.trim()) return null;
   try {
-    const res = await fetch(`${API_BASE}/stats`);
+    const res = await fetch(`${API_BASE}/stats`, {
+      headers: { "x-stats-key": secret.trim() },
+    });
     if (!res.ok) return null;
     return res.json();
   } catch {

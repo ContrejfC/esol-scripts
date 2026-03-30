@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.app_stats import get_stats, record_generation_success, record_page_view
-from app.core.config import AUDIO_DIR, TTS_PROVIDER, UPLOAD_DIR
+from app.core.config import AUDIO_DIR, STATS_SECRET, TTS_PROVIDER, UPLOAD_DIR
 from app.core.parser import parse_raw_script
 from app.models.script import GenerateAudioRequest, GenerateAudioResponse
 from app.services.audio_gen import generate_audio
@@ -40,11 +40,13 @@ def stats_page_view(request: Request):
 
 
 @router.get("/stats")
-def stats():
+def stats(x_stats_key: str | None = Header(default=None, alias="x-stats-key")):
     """
     Aggregate counters since this server process started.
-    Resets on restart (typical on free hosting after idle or deploy).
+    Requires STATS_SECRET env and matching X-Stats-Key header (404 if missing/wrong).
     """
+    if not STATS_SECRET or x_stats_key != STATS_SECRET:
+        raise HTTPException(404, "Not found")
     return get_stats()
 
 
