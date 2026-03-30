@@ -12,4 +12,5 @@ __pycache__/
 backend/.env
 backend/uploads
 backend/audio
+backend/data
 .esol-scripts-temp

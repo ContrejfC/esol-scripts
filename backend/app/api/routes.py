@@ -4,10 +4,11 @@ import logging
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.app_stats import get_stats, record_generation_success, record_page_view
+from app.core.daily_stats_store import get_daily_series
 from app.core.config import AUDIO_DIR, TTS_PROVIDER, UPLOAD_DIR
 from app.core.parser import parse_raw_script
 from app.models.script import GenerateAudioRequest, GenerateAudioResponse
@@ -46,6 +47,12 @@ def stats():
     Intentionally unlisted in the main app UI; obscurity is not strong security.
     """
     return get_stats()
+
+
+@router.get("/stats/daily")
+def stats_daily(days: int = Query(default=30, ge=1, le=366)):
+    """Per-day page views and completed audio generations (UTC dates), persisted in SQLite."""
+    return {"days": days, "timezone": "UTC", "series": get_daily_series(days)}
 
 
 @router.post("/upload-pdf")

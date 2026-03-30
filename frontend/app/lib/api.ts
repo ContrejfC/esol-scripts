@@ -170,6 +170,18 @@ export type AppActivityStats = {
   audio_generations_completed: number;
 };
 
+export type DailyStatPoint = {
+  date: string;
+  page_views: number;
+  audio_generations: number;
+};
+
+export type DailyStatsPayload = {
+  days: number;
+  timezone: string;
+  series: DailyStatPoint[];
+};
+
 /**
  * Fetch /stats. Returns { data, error } so callers can show why a request failed
  * (e.g. backend down, CORS, 404).
@@ -196,6 +208,39 @@ export async function getAppStats(): Promise<{
       };
     }
     const data = (await res.json()) as AppActivityStats;
+    return { data, error: null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      data: null,
+      error: `${msg}. Is the backend running at ${API_BASE}?`,
+    };
+  }
+}
+
+/** Per-day aggregates (UTC dates); persisted on the server when disk survives restarts. */
+export async function getAppDailyStats(
+  days = 30
+): Promise<{ data: DailyStatsPayload | null; error: string | null }> {
+  const n = Math.min(366, Math.max(1, Math.floor(days)));
+  const url = `${API_BASE}/stats/daily?days=${encodeURIComponent(String(n))}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let detail = text;
+      try {
+        const j = JSON.parse(text) as { detail?: unknown };
+        if (j.detail != null) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } catch {
+        /* use raw text */
+      }
+      return {
+        data: null,
+        error: `API returned ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+      };
+    }
+    const data = (await res.json()) as DailyStatsPayload;
     return { data, error: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

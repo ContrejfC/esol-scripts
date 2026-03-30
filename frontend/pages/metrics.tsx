@@ -1,32 +1,54 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getAppStats, type AppActivityStats } from "../app/lib/api";
+import {
+  getAppDailyStats,
+  getAppStats,
+  type AppActivityStats,
+  type DailyStatsPayload,
+} from "../app/lib/api";
+import { UsageChart } from "../components/UsageChart";
 import Link from "next/link";
+
+const RANGE_OPTIONS = [7, 30, 90] as const;
 
 export default function MetricsPage() {
   const [data, setData] = useState<AppActivityStats | null>(null);
+  const [daily, setDaily] = useState<DailyStatsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dailyError, setDailyError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartDays, setChartDays] = useState<number>(30);
 
   const load = useCallback(async () => {
     setError(null);
+    setDailyError(null);
     setLoading(true);
     try {
-      const { data, error: err } = await getAppStats();
-      if (err) {
-        setError(err);
+      const [statsRes, dailyRes] = await Promise.all([
+        getAppStats(),
+        getAppDailyStats(chartDays),
+      ]);
+      if (statsRes.error) {
+        setError(statsRes.error);
         setData(null);
       } else {
         setError(null);
-        setData(data);
+        setData(statsRes.data);
+      }
+      if (dailyRes.error) {
+        setDailyError(dailyRes.error);
+        setDaily(null);
+      } else {
+        setDailyError(null);
+        setDaily(dailyRes.data);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [chartDays]);
 
   useEffect(() => {
     void load();
@@ -36,11 +58,42 @@ export default function MetricsPage() {
     <main className="mx-auto max-w-lg px-4 py-10 text-slate-800">
       <h1 className="text-xl font-bold">ESOL Scripts — usage</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Counters are for the current server process only and reset when the host restarts (e.g. idle spin-down on free tiers).
+        Summary numbers below are for the <strong>current server process</strong> only and reset when the process restarts.
+        The chart uses persisted daily totals (UTC dates) when the server disk is available—on some hosts storage is wiped on
+        redeploy or cold start, so history may be shorter than the selected range.
       </p>
 
       {loading && <p className="mt-6 text-slate-500">Loading…</p>}
       {error && <p className="mt-6 text-sm text-red-600">{error}</p>}
+
+      {!loading && daily && !dailyError && (
+        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-800">Activity by day</h2>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <span>Range</span>
+              <select
+                value={chartDays}
+                onChange={(e) => setChartDays(Number(e.target.value))}
+                className="rounded border border-slate-300 bg-white px-2 py-1 font-medium text-slate-800"
+              >
+                {RANGE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    Last {n} days
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Line: counted app loads (same as summary). Bars: completed MP3 generations ({daily.timezone} midnight boundaries).
+          </p>
+          <UsageChart series={daily.series} />
+        </section>
+      )}
+      {!loading && dailyError && (
+        <p className="mt-6 text-sm text-amber-700">Daily chart: {dailyError}</p>
+      )}
 
       {!loading && data && (
         <dl className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
