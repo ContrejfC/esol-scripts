@@ -20,11 +20,9 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    # In this project we only expose non-sensitive endpoints and TTS
-    # happens server-side with secret keys, so it's acceptable to allow
-    # all origins to keep deployment simple (Vercel, localhost, etc.).
+    # allow_credentials=True cannot be combined with allow_origins=["*"] in browsers.
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

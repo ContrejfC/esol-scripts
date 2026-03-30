@@ -24,6 +24,3 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # Optional: ElevenLabs for phase 2
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 
-# Optional: required to read GET /stats (header X-Stats-Key). Set on Render for private usage metrics.
-STATS_SECRET = os.getenv("STATS_SECRET", "").strip()
-

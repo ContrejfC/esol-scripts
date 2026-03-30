@@ -154,15 +154,38 @@ export type AppActivityStats = {
   audio_generations_completed: number;
 };
 
-export async function getAppStats(secret: string): Promise<AppActivityStats | null> {
-  if (!secret.trim()) return null;
+/**
+ * Fetch /stats. Returns { data, error } so callers can show why a request failed
+ * (e.g. backend down, CORS, 404).
+ */
+export async function getAppStats(): Promise<{
+  data: AppActivityStats | null;
+  error: string | null;
+}> {
+  const url = `${API_BASE}/stats`;
   try {
-    const res = await fetch(`${API_BASE}/stats`, {
-      headers: { "x-stats-key": secret.trim() },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      let detail = text;
+      try {
+        const j = JSON.parse(text) as { detail?: unknown };
+        if (j.detail != null) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } catch {
+        /* use raw text */
+      }
+      return {
+        data: null,
+        error: `API returned ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+      };
+    }
+    const data = (await res.json()) as AppActivityStats;
+    return { data, error: null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      data: null,
+      error: `${msg}. Is the backend running at ${API_BASE}?`,
+    };
   }
 }
