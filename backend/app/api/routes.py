@@ -4,9 +4,10 @@ import logging
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
+from app.core.app_stats import get_stats, record_generation_success, record_page_view
 from app.core.config import AUDIO_DIR, TTS_PROVIDER, UPLOAD_DIR
 from app.core.parser import parse_raw_script
 from app.models.script import GenerateAudioRequest, GenerateAudioResponse
@@ -20,6 +21,31 @@ router = APIRouter()
 @router.get("/health")
 def health():
     return {"status": "ok"}
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    if request.client:
+        return request.client.host or ""
+    return ""
+
+
+@router.post("/stats/page-view")
+def stats_page_view(request: Request):
+    """Called once when the web UI loads; counts traffic in-app."""
+    record_page_view(_client_ip(request))
+    return {"ok": True}
+
+
+@router.get("/stats")
+def stats():
+    """
+    Aggregate counters since this server process started.
+    Resets on restart (typical on free hosting after idle or deploy).
+    """
+    return get_stats()
 
 
 @router.post("/upload-pdf")
@@ -75,6 +101,8 @@ async def generate_audio_endpoint(
         audio_id, err = generate_audio(body, override_elevenlabs_api_key=elevenlabs_api_key)
         if err:
             return GenerateAudioResponse(audio_id="", success=False, error=err)
+        if audio_id:
+            record_generation_success()
         return GenerateAudioResponse(audio_id=audio_id)
     except Exception as e:
         # Log full traceback on the server so we can debug, and return a

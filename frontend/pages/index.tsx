@@ -15,6 +15,9 @@ import {
   getApiBase,
   checkConnection,
   getUsage,
+  recordPageView,
+  getAppStats,
+  type AppActivityStats,
 } from "../app/lib/api";
 import type { ParsedScript, VoiceOption, VoiceAssignment, ReadingStyle } from "../app/lib/types";
 
@@ -70,9 +73,18 @@ export default function HomePage() {
   } | null>(null);
   const [announceNames, setAnnounceNames] = useState(true);
   const [elevenLabsKey, setElevenLabsKey] = useState("");
+  const [appActivity, setAppActivity] = useState<AppActivityStats | null>(null);
 
   useEffect(() => {
     checkConnection().then(setConnectionStatus);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      await recordPageView();
+      const s = await getAppStats();
+      setAppActivity(s);
+    })();
   }, []);
 
   useEffect(() => {
@@ -202,6 +214,7 @@ export default function HomePage() {
       });
       if (res.success && res.audio_id) {
         setAudioId(res.audio_id);
+        getAppStats().then(setAppActivity);
       } else {
         setError(res.error ?? "Generation failed");
       }
@@ -344,6 +357,15 @@ export default function HomePage() {
         <section className="mb-8">
           <AudioOutput audioId={audioId} />
         </section>
+      )}
+
+      {appActivity && (
+        <div className="fixed bottom-3 left-3 max-w-sm rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-600 shadow-sm">
+          <span className="font-semibold text-slate-800">App activity</span> (this server run):{" "}
+          {appActivity.page_views_total} page loads · {appActivity.unique_visitors_today} visitors today
+          (by IP) · {appActivity.audio_generations_completed} audio files generated. Resets when the host
+          restarts.
+        </div>
       )}
 
       {usage && usage.usage.character_limit !== undefined && (

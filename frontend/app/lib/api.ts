@@ -137,3 +137,29 @@ export async function getUsage(elevenLabsApiKey?: string): Promise<{ provider: s
 export function audioUrl(audioId: string): string {
   return `${API_BASE}/audio/${audioId}`;
 }
+
+/** Report one browser session load (best-effort; ignored on failure). */
+export async function recordPageView(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/stats/page-view`, { method: "POST" });
+  } catch {
+    /* ignore */
+  }
+}
+
+export type AppActivityStats = {
+  server_started_at_utc: string;
+  page_views_total: number;
+  unique_visitors_today: number;
+  audio_generations_completed: number;
+};
+
+export async function getAppStats(): Promise<AppActivityStats | null> {
+  try {
+    const res = await fetch(`${API_BASE}/stats`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
