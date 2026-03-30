@@ -25,7 +25,7 @@ ChartJS.register(
   Filler
 );
 
-export function UsageChart({ series }: { series: DailyStatPoint[] }) {
+function UsageChart({ series }: { series: DailyStatPoint[] }) {
   const labels = series.map((p) => {
     const [y, m, d] = p.date.split("-").map(Number);
     return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, {
@@ -84,3 +84,5 @@ export function UsageChart({ series }: { series: DailyStatPoint[] }) {
     </div>
   );
 }
+
+export { UsageChart };

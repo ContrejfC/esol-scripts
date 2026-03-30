@@ -30,10 +30,16 @@ export default class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="mt-2 text-sm text-red-700">
-              The app hit an error. Try refreshing the page. If the problem
-              continues, the backend may have restarted—check that it&apos;s
-              running on port 8002.
+              The app hit an error. Try refreshing the page. If you are running
+              locally, the backend may be down—start it on port{" "}
+              {process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002"} or set{" "}
+              <code className="rounded bg-red-100 px-1">NEXT_PUBLIC_API_BASE</code> for a hosted API.
             </p>
+            {this.state.error?.message && (
+              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-red-100/80 p-3 text-xs text-red-900">
+                {this.state.error.message}
+              </pre>
+            )}
             <button
               type="button"
               onClick={() => window.location.reload()}

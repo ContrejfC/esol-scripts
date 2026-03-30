@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import {
   getAppDailyStats,
@@ -7,8 +8,13 @@ import {
   type AppActivityStats,
   type DailyStatsPayload,
 } from "../app/lib/api";
-import { UsageChart } from "../components/UsageChart";
 import Link from "next/link";
+
+/** Chart.js needs the DOM; static prerender/SSR would throw and hit the global error boundary. */
+const UsageChart = dynamic(() => import("../components/UsageChart").then((m) => m.UsageChart), {
+  ssr: false,
+  loading: () => <p className="mt-6 text-sm text-slate-500">Loading chart…</p>,
+});
 
 const RANGE_OPTIONS = [7, 30, 90] as const;
 
