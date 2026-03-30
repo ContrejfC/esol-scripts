@@ -20,6 +20,27 @@ import type { ParsedScript, VoiceOption, VoiceAssignment, ReadingStyle } from ".
 
 type InputMode = "pdf" | "paste";
 
+/** User-facing line when /health succeeds — avoids implying Vercel uses your laptop. */
+function connectedApiMessage(): string {
+  const base = getApiBase();
+  const port = process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002";
+  try {
+    if (base.startsWith("http://") || base.startsWith("https://")) {
+      const u = new URL(base);
+      if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+        return `Connected (local backend ${u.host})`;
+      }
+      return `Connected (hosted API at ${u.host})`;
+    }
+  } catch {
+    /* fall through */
+  }
+  if (base === "/api") {
+    return `Connected (Next.js → local backend on port ${port})`;
+  }
+  return `Connected (${base})`;
+}
+
 function uniqueSpeakersFromLines(lines: { speaker: string }[]): string[] {
   const set = new Set<string>();
   lines.forEach((l) => set.add(l.speaker.trim()).add(l.speaker));
@@ -210,7 +231,7 @@ export default function HomePage() {
             }`}
           >
             <strong>API:</strong> {connectionStatus.ok ? (
-              <>Connected (backend on port {process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002"})</>
+              <>{connectedApiMessage()}</>
             ) : (
               <>
                 Connection error — {connectionStatus.message}. This app expects the backend on port{" "}
