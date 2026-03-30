@@ -1,8 +1,24 @@
 import type { ParsedScript, VoiceAssignment, VoiceOption, ReadingStyle } from "./types";
 
-// By default use /api (Next.js proxy). In dev, you can override with
-// NEXT_PUBLIC_API_BASE=http://127.0.0.1:8002 to talk directly to FastAPI.
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api";
+/**
+ * Backend origin for API calls.
+ * - Default `/api` uses Next.js rewrites to the real backend (see next.config.js).
+ * - If NEXT_PUBLIC_API_BASE is a full URL, trailing slashes are stripped.
+ * - If it mistakenly ends with `/api` (copy-paste from Next convention), that is stripped
+ *   so paths become `.../stats` not `.../api/stats` (FastAPI has no /api prefix).
+ */
+function normalizeApiBase(raw: string | undefined): string {
+  const r = (raw ?? "").trim();
+  if (!r || r === "/api") return "/api";
+  let b = r.replace(/\/+$/, "");
+  if (b.startsWith("http://") || b.startsWith("https://")) {
+    if (b.endsWith("/api")) b = b.slice(0, -4).replace(/\/+$/, "");
+    return b;
+  }
+  return b;
+}
+
+const API_BASE = normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE);
 
 export function getApiBase(): string {
   return API_BASE;
