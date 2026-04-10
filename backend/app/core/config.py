@@ -24,4 +24,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Optional: ElevenLabs for phase 2
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+# Second ElevenLabs account (selected in UI as "Elizabeth" profile)
+ELEVENLABS_API_KEY_ELIZABETH = os.getenv("ELEVENLABS_API_KEY_ELIZABETH", "")
 

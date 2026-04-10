@@ -16,6 +16,7 @@ import {
   checkConnection,
   getUsage,
   recordPageView,
+  type ElevenLabsKeyProfile,
 } from "../app/lib/api";
 import type { ParsedScript, VoiceOption, VoiceAssignment, ReadingStyle } from "../app/lib/types";
 
@@ -71,6 +72,7 @@ export default function HomePage() {
   } | null>(null);
   const [announceNames, setAnnounceNames] = useState(true);
   const [elevenLabsKey, setElevenLabsKey] = useState("");
+  const [elevenLabsProfile, setElevenLabsProfile] = useState<ElevenLabsKeyProfile>("default");
 
   useEffect(() => {
     checkConnection().then(setConnectionStatus);
@@ -81,15 +83,21 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    listVoices(elevenLabsKey || undefined)
+    listVoices({
+      elevenLabsApiKey: elevenLabsKey || undefined,
+      elevenLabsProfile,
+    })
       .then((r) => setVoices(r.voices))
       .catch(() => setVoices([{ id: "alloy", name: "Alloy" }]));
 
     // Fetch usage info in the background; best-effort only.
-    getUsage(elevenLabsKey || undefined)
+    getUsage({
+      elevenLabsApiKey: elevenLabsKey || undefined,
+      elevenLabsProfile,
+    })
       .then((u) => setUsage(u))
       .catch(() => setUsage(null));
-  }, [elevenLabsKey]);
+  }, [elevenLabsKey, elevenLabsProfile]);
 
   useEffect(() => {
     if (!script?.speakers?.length) return;
@@ -204,6 +212,7 @@ export default function HomePage() {
         globalStyle,
         announceNames,
         elevenLabsApiKey: elevenLabsKey || undefined,
+        elevenLabsProfile,
       });
       if (res.success && res.audio_id) {
         setAudioId(res.audio_id);
@@ -216,7 +225,7 @@ export default function HomePage() {
       setLoading(false);
       isGeneratingRef.current = false;
     }
-  }, [script, assignments, globalStyle, announceNames, elevenLabsKey]);
+  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, elevenLabsProfile]);
 
   const speakers = script ? uniqueSpeakersFromLines(script.lines) : [];
 
@@ -249,19 +258,33 @@ export default function HomePage() {
             )}
           </div>
         )}
-        <div className="mt-4 flex flex-col gap-2 text-sm text-slate-700">
+        <div className="mt-4 flex flex-col gap-3 text-sm text-slate-700">
+          <label className="flex max-w-md flex-col gap-1">
+            <span className="font-medium">ElevenLabs account</span>
+            <select
+              value={elevenLabsProfile}
+              onChange={(e) => setElevenLabsProfile(e.target.value as ElevenLabsKeyProfile)}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+            >
+              <option value="default">Default</option>
+              <option value="elizabeth">Elizabeth</option>
+            </select>
+            <span className="text-xs text-slate-500">
+              <strong>Default</strong> uses the server&apos;s <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY</code>.
+              <strong> Elizabeth</strong> uses <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY_ELIZABETH</code> (set on the backend).
+            </span>
+          </label>
           <label className="flex flex-col gap-1 max-w-md">
             <span className="font-medium">ElevenLabs API key (optional)</span>
             <input
               type="password"
               value={elevenLabsKey}
-              onChange={(e) => setElevenLabsKey(e.target.value.trim())}
-              placeholder="Override backend ELEVENLABS_API_KEY for this browser session"
+              onChange={(e) => setElevenLabsKey(e.target.value)}
+              placeholder="Overrides account choice for this browser session only"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
             <span className="text-xs text-slate-500">
-              If set, this key is used for ElevenLabs voices, usage, and generation from this browser,
-              so you can use a different account&apos;s credits without changing the server .env.
+              If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
             </span>
           </label>
         </div>

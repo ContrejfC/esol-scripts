@@ -14,6 +14,7 @@ from app.core.parser import parse_raw_script
 from app.models.script import GenerateAudioRequest, GenerateAudioResponse
 from app.services.audio_gen import generate_audio
 from app.services.pdf_extract import extract_text_from_pdf
+from app.core.elevenlabs_keys import resolve_elevenlabs_api_key
 from app.services.tts import get_tts_provider
 
 router = APIRouter()
@@ -102,10 +103,12 @@ async def parse_script(body: dict | None = None):
 async def generate_audio_endpoint(
     body: GenerateAudioRequest,
     elevenlabs_api_key: str | None = Header(default=None, alias="x-elevenlabs-api-key"),
+    elevenlabs_key_profile: str | None = Header(default=None, alias="x-elevenlabs-key-profile"),
 ):
     """Generate line-by-line audio, merge to MP3, return audio id."""
     try:
-        audio_id, err = generate_audio(body, override_elevenlabs_api_key=elevenlabs_api_key)
+        resolved = resolve_elevenlabs_api_key(elevenlabs_api_key, elevenlabs_key_profile)
+        audio_id, err = generate_audio(body, override_elevenlabs_api_key=resolved)
         if err:
             return GenerateAudioResponse(audio_id="", success=False, error=err)
         if audio_id:
@@ -137,10 +140,12 @@ def get_audio(audio_id: str):
 @router.get("/voices")
 def list_voices(
     elevenlabs_api_key: str | None = Header(default=None, alias="x-elevenlabs-api-key"),
+    elevenlabs_key_profile: str | None = Header(default=None, alias="x-elevenlabs-key-profile"),
 ):
     """Return available TTS voices for dropdown."""
     try:
-        provider = get_tts_provider(override_elevenlabs_api_key=elevenlabs_api_key)
+        resolved = resolve_elevenlabs_api_key(elevenlabs_api_key, elevenlabs_key_profile)
+        provider = get_tts_provider(override_elevenlabs_api_key=resolved)
         return {"voices": provider.list_voices()}
     except Exception as e:
         raise HTTPException(500, detail=f"TTS provider error: {str(e)}")
@@ -149,6 +154,7 @@ def list_voices(
 @router.get("/usage")
 def usage(
     elevenlabs_api_key: str | None = Header(default=None, alias="x-elevenlabs-api-key"),
+    elevenlabs_key_profile: str | None = Header(default=None, alias="x-elevenlabs-key-profile"),
 ):
     """
     Return TTS provider usage/credit info when available.
@@ -157,7 +163,8 @@ def usage(
     character_remaining. For other providers, usage will be {}.
     """
     try:
-        provider = get_tts_provider(override_elevenlabs_api_key=elevenlabs_api_key)
+        resolved = resolve_elevenlabs_api_key(elevenlabs_api_key, elevenlabs_key_profile)
+        provider = get_tts_provider(override_elevenlabs_api_key=resolved)
         return {"provider": TTS_PROVIDER, "usage": provider.get_usage()}
     except Exception as e:
         raise HTTPException(500, detail=f"Usage error: {str(e)}")

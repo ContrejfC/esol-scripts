@@ -44,6 +44,23 @@ const BACKEND_PORT = typeof process.env.NEXT_PUBLIC_BACKEND_PORT !== "undefined"
 const BACKEND_UNREACHABLE_MSG =
   `Backend not reachable on port ${BACKEND_PORT}. Start it: cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port ${BACKEND_PORT}. Then refresh.`;
 
+/** Server-side profiles (see backend ELEVENLABS_API_KEY / ELEVENLABS_API_KEY_ELIZABETH). */
+export type ElevenLabsKeyProfile = "default" | "elizabeth";
+
+function buildElevenLabsHeaders(opts: {
+  profile: ElevenLabsKeyProfile;
+  overrideKey?: string;
+}): Record<string, string> {
+  const trimmed = opts.overrideKey?.trim();
+  if (trimmed) {
+    return { "x-elevenlabs-api-key": trimmed };
+  }
+  if (opts.profile === "elizabeth") {
+    return { "x-elevenlabs-key-profile": "elizabeth" };
+  }
+  return {};
+}
+
 async function post<T>(
   path: string,
   body: unknown,
@@ -117,19 +134,27 @@ export async function generateAudio(params: {
   globalStyle: ReadingStyle;
   announceNames: boolean;
   elevenLabsApiKey?: string;
+  elevenLabsProfile?: ElevenLabsKeyProfile;
 }): Promise<{ audio_id: string; success: boolean; error?: string }> {
-  const { elevenLabsApiKey, ...body } = params;
-  const headers: Record<string, string> = {};
-  if (elevenLabsApiKey) {
-    headers["x-elevenlabs-api-key"] = elevenLabsApiKey;
-  }
+  const { elevenLabsApiKey, elevenLabsProfile, ...body } = params;
+  const headers = buildElevenLabsHeaders({
+    profile: elevenLabsProfile ?? "default",
+    overrideKey: elevenLabsApiKey,
+  });
   return post("/generate-audio", body, headers);
 }
 
-export async function listVoices(elevenLabsApiKey?: string): Promise<{ voices: VoiceOption[] }> {
+export async function listVoices(opts?: {
+  elevenLabsApiKey?: string;
+  elevenLabsProfile?: ElevenLabsKeyProfile;
+}): Promise<{ voices: VoiceOption[] }> {
   try {
+    const headers = buildElevenLabsHeaders({
+      profile: opts?.elevenLabsProfile ?? "default",
+      overrideKey: opts?.elevenLabsApiKey,
+    });
     const res = await fetch(`${API_BASE}/voices`, {
-      headers: elevenLabsApiKey ? { "x-elevenlabs-api-key": elevenLabsApiKey } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
     });
     if (!res.ok) throw new Error("Failed to load voices");
     return res.json();
@@ -139,9 +164,16 @@ export async function listVoices(elevenLabsApiKey?: string): Promise<{ voices: V
   }
 }
 
-export async function getUsage(elevenLabsApiKey?: string): Promise<{ provider: string; usage: { character_limit?: number; character_count?: number; character_remaining?: number } }> {
+export async function getUsage(opts?: {
+  elevenLabsApiKey?: string;
+  elevenLabsProfile?: ElevenLabsKeyProfile;
+}): Promise<{ provider: string; usage: { character_limit?: number; character_count?: number; character_remaining?: number } }> {
+  const headers = buildElevenLabsHeaders({
+    profile: opts?.elevenLabsProfile ?? "default",
+    overrideKey: opts?.elevenLabsApiKey,
+  });
   const res = await fetch(`${API_BASE}/usage`, {
-    headers: elevenLabsApiKey ? { "x-elevenlabs-api-key": elevenLabsApiKey } : undefined,
+    headers: Object.keys(headers).length ? headers : undefined,
   });
   if (!res.ok) {
     // If usage fails, just return empty info; don't break the UI.
