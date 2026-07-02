@@ -1,5 +1,7 @@
 """ElevenLabs TTS - natural, high-quality voices for ESOL dialogues."""
 
+import threading
+import time
 from pathlib import Path
 
 import httpx
@@ -8,6 +10,17 @@ from app.core.config import ELEVENLABS_API_KEY
 from app.services.tts.base import TTSProvider
 
 ELEVENLABS_BASE = "https://api.elevenlabs.io/v1"
+
+# Shared client: reuses TCP/TLS connections across the many sequential requests
+# made during a generation instead of a new handshake per call. httpx.Client is
+# thread-safe, so this is fine even when generation runs in a worker thread.
+_client = httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0))
+
+# The /voices response rarely changes; cache it briefly per API key so a single
+# generation (list_voices + narrator_voice_id + validation) hits the API once.
+_VOICES_CACHE_TTL_SECONDS = 60.0
+_voices_cache: dict[str, tuple[float, list[dict]]] = {}
+_voices_cache_lock = threading.Lock()
 
 
 class ElevenLabsTTSProvider(TTSProvider):
@@ -20,6 +33,22 @@ class ElevenLabsTTSProvider(TTSProvider):
 
     def _headers(self, accept: str = "application/json") -> dict:
         return {"xi-api-key": self._api_key, "Content-Type": "application/json", "Accept": accept}
+
+    def _fetch_voices_raw(self) -> list[dict]:
+        """Raw voice objects from /voices, cached briefly per API key."""
+        key = self._api_key
+        now = time.monotonic()
+        with _voices_cache_lock:
+            cached = _voices_cache.get(key)
+            if cached and now - cached[0] < _VOICES_CACHE_TTL_SECONDS:
+                return cached[1]
+        resp = _client.get(f"{ELEVENLABS_BASE}/voices", headers=self._headers(), timeout=30.0)
+        resp.raise_for_status()
+        data = resp.json()
+        voices = data.get("voices", data if isinstance(data, list) else [])
+        with _voices_cache_lock:
+            _voices_cache[key] = (time.monotonic(), voices)
+        return voices
 
     def synthesize(
         self,
@@ -45,20 +74,21 @@ class ElevenLabsTTSProvider(TTSProvider):
             "model_id": "eleven_multilingual_v2",
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.75, "speed": speed},
         }
-        with httpx.Client(timeout=60.0) as client:
-            resp = client.post(url, json=payload, params=params, headers=self._headers(accept="audio/mpeg"))
-            resp.raise_for_status()
-            output_path.write_bytes(resp.content)
+        resp = _client.post(
+            url,
+            json=payload,
+            params=params,
+            headers=self._headers(accept="audio/mpeg"),
+            timeout=60.0,
+        )
+        resp.raise_for_status()
+        output_path.write_bytes(resp.content)
 
     def list_voices(self) -> list[dict]:
         if not self._api_key:
             return []
         try:
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.get(f"{ELEVENLABS_BASE}/voices", headers=self._headers())
-                resp.raise_for_status()
-                data = resp.json()
-            voices = data.get("voices", data if isinstance(data, list) else [])
+            voices = self._fetch_voices_raw()
             parsed = [
                 {
                     "id": v.get("voice_id", ""),
@@ -83,11 +113,7 @@ class ElevenLabsTTSProvider(TTSProvider):
         if not self._api_key:
             return ""
         try:
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.get(f"{ELEVENLABS_BASE}/voices", headers=self._headers())
-                resp.raise_for_status()
-                data = resp.json()
-            voices = data.get("voices", data if isinstance(data, list) else [])
+            voices = self._fetch_voices_raw()
             if not voices:
                 return ""
             first = voices[0]
@@ -104,10 +130,11 @@ class ElevenLabsTTSProvider(TTSProvider):
         if not self._api_key:
             return {}
         try:
-            with httpx.Client(timeout=15.0) as client:
-                resp = client.get(f"{ELEVENLABS_BASE}/user/subscription", headers=self._headers())
-                resp.raise_for_status()
-                data = resp.json()
+            resp = _client.get(
+                f"{ELEVENLABS_BASE}/user/subscription", headers=self._headers(), timeout=15.0
+            )
+            resp.raise_for_status()
+            data = resp.json()
             limit = int(data.get("character_limit") or 0)
             used = int(data.get("character_count") or 0)
             return {

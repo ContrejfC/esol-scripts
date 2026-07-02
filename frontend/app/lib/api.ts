@@ -41,8 +41,23 @@ function isNetworkError(e: unknown): boolean {
 }
 
 const BACKEND_PORT = typeof process.env.NEXT_PUBLIC_BACKEND_PORT !== "undefined" ? process.env.NEXT_PUBLIC_BACKEND_PORT : "8002";
-const BACKEND_UNREACHABLE_MSG =
-  `Backend not reachable on port ${BACKEND_PORT}. Start it: cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port ${BACKEND_PORT}. Then refresh.`;
+
+/** True when the app talks to a local dev backend (Next rewrite or localhost URL). */
+export function isLocalApi(): boolean {
+  if (API_BASE === "/api") return true;
+  try {
+    const u = new URL(API_BASE);
+    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  } catch {
+    return true;
+  }
+}
+
+// Local dev gets the exact command to start the backend; against a hosted API
+// that command is meaningless, so show a wake-up-and-retry message instead.
+const BACKEND_UNREACHABLE_MSG = isLocalApi()
+  ? `Backend not reachable on port ${BACKEND_PORT}. Start it: cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port ${BACKEND_PORT}. Then refresh.`
+  : "The audio server is not responding. It may be waking up — wait about 30 seconds, then try again.";
 
 /** Server-side profiles (see backend ELEVENLABS_API_KEY / ELEVENLABS_API_KEY_ELIZABETH). */
 export type ElevenLabsKeyProfile = "default" | "elizabeth";

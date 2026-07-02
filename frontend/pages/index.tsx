@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import InputModeTabs from "../app/components/InputModeTabs";
 import PdfUpload from "../app/components/PdfUpload";
@@ -14,6 +15,7 @@ import {
   generateAudio,
   listVoices,
   getApiBase,
+  isLocalApi,
   checkConnection,
   getUsage,
   recordPageView,
@@ -88,6 +90,7 @@ export default function HomePage() {
   const [globalStyle, setGlobalStyle] = useState<ReadingStyle>("normal");
   const [audioId, setAudioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{
@@ -139,16 +142,22 @@ export default function HomePage() {
     void recordPageView();
   }, []);
 
+  const refreshUsage = useCallback(async () => {
+    try {
+      const u = await getUsage({
+        elevenLabsApiKey: elevenLabsKey || undefined,
+        elevenLabsProfile,
+      });
+      setUsage(u);
+    } catch {
+      setUsage(null);
+    }
+  }, [elevenLabsKey, elevenLabsProfile]);
+
   useEffect(() => {
     void loadVoices();
-
-    getUsage({
-      elevenLabsApiKey: elevenLabsKey || undefined,
-      elevenLabsProfile,
-    })
-      .then((u) => setUsage(u))
-      .catch(() => setUsage(null));
-  }, [loadVoices, elevenLabsKey, elevenLabsProfile]);
+    void refreshUsage();
+  }, [loadVoices, refreshUsage]);
 
   useEffect(() => {
     if (!script?.speakers?.length || voices.length === 0) return;
@@ -256,7 +265,7 @@ export default function HomePage() {
     isGeneratingRef.current = true;
     setError(null);
     setAudioId(null);
-    setLoading(true);
+    setGenerating(true);
     try {
       const res = await generateAudio({
         script,
@@ -268,88 +277,123 @@ export default function HomePage() {
       });
       if (res.success && res.audio_id) {
         setAudioId(res.audio_id);
+        // Generation consumed credits; update the usage badge right away.
+        void refreshUsage();
       } else {
         setError(res.error ?? "Generation failed");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
-      setLoading(false);
+      setGenerating(false);
       isGeneratingRef.current = false;
     }
-  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, elevenLabsProfile, voices, voicesLoading, voicesError]);
+  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, elevenLabsProfile, voices, voicesLoading, voicesError, refreshUsage]);
 
   const speakers = script ? uniqueSpeakersFromLines(script.lines) : [];
+  const hasLinesWithText = script ? script.lines.some((l) => l.text?.trim()) : false;
+  const generateBlockedReason = voicesLoading
+    ? "Voices are still loading — Generate will enable when they're ready."
+    : voices.length === 0
+      ? "Voices could not be loaded. Fix the voice connection above, then retry."
+      : !hasLinesWithText
+        ? "Add at least one line with text before generating."
+        : null;
+  const backendPort = process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002";
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">ESOL Scripts</h1>
-        <p className="mt-1 text-slate-600">
-          Convert classroom dialogue scripts into clear audio for English learners.
-        </p>
-        {connectionStatus !== null && (
-          <div
-            className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
-              connectionStatus.ok
-                ? "border-green-200 bg-green-50 text-green-800"
-                : "border-red-200 bg-red-50 text-red-800"
-            }`}
-          >
-            <strong>API:</strong> {connectionStatus.ok ? (
-              <>{connectedApiMessage()}</>
-            ) : (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">ESOL Scripts</h1>
+            <p className="mt-1 text-slate-600">
+              Convert classroom dialogue scripts into clear audio for English learners.
+            </p>
+          </div>
+          {connectionStatus !== null && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+                connectionStatus.ok
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  connectionStatus.ok ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
+              {connectionStatus.ok ? connectedApiMessage() : "API connection error"}
+            </span>
+          )}
+        </div>
+        {connectionStatus !== null && !connectionStatus.ok && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {isLocalApi() ? (
               <>
                 Connection error — {connectionStatus.message}. This app expects the backend on port{" "}
-                <strong>{process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002"}</strong>. Start it with that port, then refresh:{" "}
+                <strong>{backendPort}</strong>. Start it with that port, then refresh:{" "}
                 <code className="rounded bg-red-100 px-1 text-xs">
-                  cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port {process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002"}
+                  cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port {backendPort}
                 </code>
                 {" "}If your backend runs on a different port, set BACKEND_PORT in frontend/.env.local and restart npm run dev.
+              </>
+            ) : (
+              <>
+                Connection error — {connectionStatus.message}. The hosted API may be waking up.
+                Wait about 30 seconds, then refresh this page.
               </>
             )}
           </div>
         )}
-        <div className="mt-4 flex flex-col gap-3 text-sm text-slate-700">
-          <label className="flex max-w-md flex-col gap-1">
-            <span className="font-medium">ElevenLabs account</span>
-            <select
-              value={elevenLabsProfile}
-              onChange={(e) => setElevenLabsProfile(e.target.value as ElevenLabsKeyProfile)}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
-            >
-              <option value="default">Default</option>
-              <option value="elizabeth">Elizabeth</option>
-            </select>
-            <span className="text-xs text-slate-500">
-              <strong>Default</strong> uses the server&apos;s <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY</code>.
-              <strong> Elizabeth</strong> uses <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY_ELIZABETH</code> (set on the backend).
-            </span>
-          </label>
-          <label className="flex flex-col gap-1 max-w-md">
-            <span className="font-medium">ElevenLabs API key (optional)</span>
-            <input
-              type="password"
-              value={elevenLabsKey}
-              onChange={(e) => setElevenLabsKey(e.target.value)}
-              placeholder="Overrides account choice for this browser session only"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <span className="text-xs text-slate-500">
-              If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
-            </span>
-          </label>
+        <div className="mt-4 space-y-3 text-sm text-slate-700">
           <VoiceLoadStatus
             loading={voicesLoading}
             error={voicesError}
             voiceCount={voices.length}
             onRetry={() => void loadVoices()}
           />
+          <details className="rounded-xl border border-slate-200 bg-white">
+            <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-slate-700 hover:text-slate-900">
+              Advanced: ElevenLabs account &amp; API key
+            </summary>
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3">
+              <label className="flex max-w-md flex-col gap-1">
+                <span className="font-medium">ElevenLabs account</span>
+                <select
+                  value={elevenLabsProfile}
+                  onChange={(e) => setElevenLabsProfile(e.target.value as ElevenLabsKeyProfile)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                >
+                  <option value="default">Default</option>
+                  <option value="elizabeth">Elizabeth</option>
+                </select>
+                <span className="text-xs text-slate-500">
+                  <strong>Default</strong> uses the server&apos;s <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY</code>.
+                  <strong> Elizabeth</strong> uses <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY_ELIZABETH</code> (set on the backend).
+                </span>
+              </label>
+              <label className="flex max-w-md flex-col gap-1">
+                <span className="font-medium">ElevenLabs API key (optional)</span>
+                <input
+                  type="password"
+                  value={elevenLabsKey}
+                  onChange={(e) => setElevenLabsKey(e.target.value)}
+                  placeholder="Overrides account choice for this browser session only"
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+                <span className="text-xs text-slate-500">
+                  If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
+                </span>
+              </label>
+            </div>
+          </details>
         </div>
       </header>
 
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">Input</h2>
+      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-lg font-semibold text-slate-800">1. Add your script</h2>
         <InputModeTabs mode={inputMode} onChange={setInputMode} />
         <div className="mt-4">
           {inputMode === "pdf" && (
@@ -376,14 +420,16 @@ export default function HomePage() {
 
       {script && script.lines.length > 0 && (
         <>
-          <section className="mb-8">
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-800">2. Review the lines</h2>
             <ScriptReview
               script={script}
               onUpdateLine={updateLine}
               onRemoveLine={removeLine}
             />
           </section>
-          <section className="mb-8">
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-800">3. Choose voices</h2>
             <SpeakerVoices
               speakers={speakers}
               voices={voices}
@@ -393,8 +439,8 @@ export default function HomePage() {
               onGlobalStyleChange={setGlobalStyle}
             />
           </section>
-          <section className="mb-8">
-            <h3 className="mb-2 text-lg font-semibold text-slate-800">Generate audio</h3>
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-2 text-lg font-semibold text-slate-800">4. Generate audio</h2>
             <p className="mb-2 text-sm text-slate-600">
               {script.lines.filter((l) => l.text?.trim()).length} lines, ~
               {script.lines
@@ -402,7 +448,7 @@ export default function HomePage() {
                 .reduce((sum, l) => sum + (l.text?.length ?? 0), 0)}{" "}
               characters — each generation uses API credits.
             </p>
-            <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+            <label className="mb-3 flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={announceNames}
@@ -414,11 +460,31 @@ export default function HomePage() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={loading}
-              className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              disabled={generating || generateBlockedReason !== null}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Generating…" : "Generate Audio"}
+              {generating && (
+                <span
+                  aria-hidden
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+              )}
+              {generating ? "Generating…" : "Generate Audio"}
             </button>
+            {!generating && generateBlockedReason && (
+              <p className="mt-2 text-sm text-slate-500">{generateBlockedReason}</p>
+            )}
+            {generating && (
+              <div className="mt-3 max-w-md" role="status" aria-live="polite">
+                <div className="h-1.5 overflow-hidden rounded-full bg-indigo-100">
+                  <div className="animate-indeterminate h-full w-1/3 rounded-full bg-indigo-500" />
+                </div>
+                <p className="mt-2 text-sm text-slate-600">
+                  Generating audio line by line — this may take a minute for longer scripts.
+                  Keep this tab open.
+                </p>
+              </div>
+            )}
             {error && (
               <p className="mt-2 text-sm text-red-600">{error}</p>
             )}
@@ -427,7 +493,7 @@ export default function HomePage() {
       )}
 
       {audioId && (
-        <section className="mb-8">
+        <section className="mb-6">
           <AudioOutput audioId={audioId} />
         </section>
       )}
@@ -438,6 +504,12 @@ export default function HomePage() {
           {usage.usage.character_remaining} / {usage.usage.character_limit} characters left
         </div>
       )}
+
+      <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-400">
+        <Link href="/metrics" className="hover:text-slate-600 hover:underline">
+          Usage metrics
+        </Link>
+      </footer>
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,6 +10,31 @@ from app.core.config import AUDIO_DIR, TEMP_DIR
 from app.core.normalize import normalize_for_tts
 from app.models.script import DialogueLine, GenerateAudioRequest, ParsedScript, VoiceAssignment
 from app.services.tts import get_tts_provider
+
+# The 300ms silence spacer is identical for every generation; build it once and
+# reuse it instead of spawning an extra ffmpeg process per request.
+_SILENCE_CACHE_PATH = TEMP_DIR / "silence_300ms_cache.mp3"
+_silence_lock = threading.Lock()
+
+
+def _ensure_silence_clip() -> Path:
+    """Return the shared 300ms silence MP3, creating it on first use."""
+    if _SILENCE_CACHE_PATH.exists() and _SILENCE_CACHE_PATH.stat().st_size > 0:
+        return _SILENCE_CACHE_PATH
+    with _silence_lock:
+        if _SILENCE_CACHE_PATH.exists() and _SILENCE_CACHE_PATH.stat().st_size > 0:
+            return _SILENCE_CACHE_PATH
+        tmp_path = _SILENCE_CACHE_PATH.with_name(f"{_SILENCE_CACHE_PATH.stem}_{uuid4().hex[:8]}.mp3")
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+                "-t", "0.3", "-q:a", "9", "-acodec", "libmp3lame", str(tmp_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        tmp_path.replace(_SILENCE_CACHE_PATH)
+    return _SILENCE_CACHE_PATH
 
 
 def _voice_for_speaker(speaker: str, assignments: list[VoiceAssignment], default_voice: str) -> str:
@@ -71,7 +97,6 @@ def generate_audio(
     work_dir.mkdir(parents=True, exist_ok=True)
     clip_paths: list[Path] = []
     list_file = work_dir / "concat_list.txt"
-    silence_path = work_dir / "silence_300ms.mp3"
 
     try:
         for i, line in enumerate(lines_to_synthesize):
@@ -105,15 +130,7 @@ def generate_audio(
             return "", "No dialogue lines to generate"
 
         # 300ms silence between lines for clarity (pause between speaker turns)
-        # 300ms silence at 44.1k mono
-        subprocess.run(
-            [
-                "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
-                "-t", "0.3", "-q:a", "9", "-acodec", "libmp3lame", str(silence_path),
-            ],
-            check=True,
-            capture_output=True,
-        )
+        silence_path = _ensure_silence_clip()
         with open(list_file, "w") as f:
             for j, p in enumerate(clip_paths):
                 f.write(f"file '{p.absolute()}'\n")

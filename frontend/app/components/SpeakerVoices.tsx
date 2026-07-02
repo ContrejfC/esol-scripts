@@ -38,13 +38,12 @@ export default function SpeakerVoices({
   return (
     <div className="space-y-4">
       <audio ref={previewAudioRef} className="hidden" />
-      <h3 className="text-lg font-semibold text-slate-800">Voice for each speaker</h3>
       <p className="text-sm text-slate-600">
-        Use &quot;Play sample&quot; to hear each voice before generating. No credits used for samples.
+        Pick a voice for each speaker. Use &quot;Play sample&quot; to hear a voice before generating — samples don&apos;t use credits.
       </p>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">
-          Default reading style (speed)
+          Default reading speed
         </label>
         <select
           value={globalStyle}
@@ -70,7 +69,7 @@ export default function SpeakerVoices({
               <div className="space-y-2">
                 <div className="flex gap-2 items-end">
                   <div className="flex-1 min-w-0">
-                    <label className="text-xs text-slate-500">Voice</label>
+                    <label className="text-xs font-medium text-slate-500">Voice</label>
                     <select
                       value={voiceId}
                       onChange={(e) =>
@@ -96,7 +95,7 @@ export default function SpeakerVoices({
                   </button>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500">Style</label>
+                  <label className="text-xs font-medium text-slate-500">Reading speed</label>
                   <select
                     value={getStyle(speaker)}
                     onChange={(e) =>

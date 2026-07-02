@@ -15,7 +15,9 @@ export default function ScriptReview({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-800">Review & edit lines</h3>
+      <p className="text-sm text-slate-600">
+        Check speaker names and text below — you can edit or remove lines before generating.
+      </p>
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="min-w-full text-left text-sm">
           <thead>

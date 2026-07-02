@@ -1,5 +1,6 @@
 """API routes for upload, parse, generate-audio, and audio download."""
 
+import asyncio
 import logging
 import shutil
 from pathlib import Path
@@ -108,7 +109,11 @@ async def generate_audio_endpoint(
     """Generate line-by-line audio, merge to MP3, return audio id."""
     try:
         resolved = resolve_elevenlabs_api_key(elevenlabs_api_key, elevenlabs_key_profile)
-        audio_id, err = generate_audio(body, override_elevenlabs_api_key=resolved)
+        # generate_audio is blocking (sequential TTS calls + ffmpeg); run it in a
+        # worker thread so the event loop can keep serving other requests.
+        audio_id, err = await asyncio.to_thread(
+            generate_audio, body, override_elevenlabs_api_key=resolved
+        )
         if err:
             return GenerateAudioResponse(audio_id="", success=False, error=err)
         if audio_id:
