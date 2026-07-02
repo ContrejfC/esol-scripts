@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 
 from app.core.app_stats import get_stats, record_generation_success, record_page_view
 from app.core.daily_stats_store import get_daily_series
-from app.core.config import AUDIO_DIR, TTS_PROVIDER, UPLOAD_DIR
+from app.core.config import AUDIO_DIR, TTS_PROVIDER
 from app.core.parser import parse_raw_script
 from app.models.script import GenerateAudioRequest, GenerateAudioResponse
 from app.services.audio_gen import generate_audio
@@ -59,22 +59,22 @@ def stats_daily(days: int = Query(default=30, ge=1, le=366)):
 
 @router.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
-    """Accept PDF, extract text, parse to script structure. Return raw text + parsed script."""
+    """Accept PDF, extract text in memory, parse to script structure. Return raw text + parsed script."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Please upload a PDF file")
-    path = UPLOAD_DIR / file.filename
+    content = await file.read()
+    if not content.startswith(b"%PDF"):
+        raise HTTPException(400, "File does not look like a valid PDF.")
     try:
-        content = await file.read()
-        path.write_bytes(content)
-        raw_text = extract_text_from_pdf(path)
-        script = parse_raw_script(raw_text, source_type="pdf", title=file.filename or "")
-        return {"rawText": raw_text, "script": script.model_dump(by_alias=True)}
-    finally:
-        if path.exists():
-            try:
-                path.unlink()
-            except Exception:
-                pass
+        raw_text = extract_text_from_pdf(content)
+    except Exception as e:
+        raise HTTPException(400, f"Could not read PDF: {e}") from e
+    # Use basename only for display title — never use client path for disk I/O.
+    title = Path(file.filename).name
+    if title.lower().endswith(".pdf"):
+        title = title[:-4]
+    script = parse_raw_script(raw_text, source_type="pdf", title=title)
+    return {"rawText": raw_text, "script": script.model_dump(by_alias=True)}
 
 
 @router.post("/parse-text")

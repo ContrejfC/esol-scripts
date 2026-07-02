@@ -24,9 +24,9 @@ export default function PasteScript({
   error?: string;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">
           Script title (optional)
         </label>
         <input
@@ -34,29 +34,29 @@ export default function PasteScript({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder="e.g. Greetings"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+          className="input-field"
           disabled={disabled}
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">
-          Paste your dialogue (one line per speaker: <code className="rounded bg-slate-200 px-1">Speaker: text</code>)
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">
+          Paste your dialogue (one line per speaker: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">Speaker: text</code>)
         </label>
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Maria: Hello!&#10;John: Hi there."
           rows={10}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-slate-900"
+          className="input-field font-mono leading-relaxed"
           disabled={disabled}
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2.5">
         <button
           type="button"
           onClick={onParse}
           disabled={disabled || !value.trim()}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="btn-primary"
         >
           Parse script
         </button>
@@ -64,12 +64,14 @@ export default function PasteScript({
           type="button"
           onClick={onLoadSample}
           disabled={disabled}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="btn-secondary"
         >
           Load sample
         </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</p>
+      )}
     </div>
   );
 }

@@ -302,26 +302,42 @@ export default function HomePage() {
   const backendPort = process.env.NEXT_PUBLIC_BACKEND_PORT ?? "8002";
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
-      <header className="mb-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">ESOL Scripts</h1>
-            <p className="mt-1 text-slate-600">
-              Convert classroom dialogue scripts into clear audio for English learners.
-            </p>
+    <main className="mx-auto max-w-4xl px-4 py-10">
+      <header className="mb-10">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div
+              aria-hidden
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-teal-500 text-white shadow-md shadow-indigo-600/25"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.5c-1.6-1.2-3.7-1.5-6-1.5v12c2.3 0 4.4.3 6 1.5 1.6-1.2 3.7-1.5 6-1.5v-12c-2.3 0-4.4.3-6 1.5z" />
+                <path strokeLinecap="round" d="M12 6.5v12" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+                ESOL{" "}
+                <span className="bg-gradient-to-r from-indigo-600 to-teal-600 bg-clip-text text-transparent">
+                  Scripts
+                </span>
+              </h1>
+              <p className="mt-1 text-slate-600">
+                Turn classroom dialogue scripts into clear audio for English learners.
+              </p>
+            </div>
           </div>
           {connectionStatus !== null && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+              className={`pill ${
                 connectionStatus.ok
-                  ? "border-green-200 bg-green-50 text-green-800"
+                  ? "border-teal-200 bg-teal-50 text-teal-800"
                   : "border-red-200 bg-red-50 text-red-800"
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  connectionStatus.ok ? "bg-green-500" : "bg-red-500"
+                  connectionStatus.ok ? "bg-teal-500" : "bg-red-500"
                 }`}
               />
               {connectionStatus.ok ? connectedApiMessage() : "API connection error"}
@@ -329,7 +345,7 @@ export default function HomePage() {
           )}
         </div>
         {connectionStatus !== null && !connectionStatus.ok && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {isLocalApi() ? (
               <>
                 Connection error — {connectionStatus.message}. This app expects the backend on port{" "}
@@ -347,43 +363,51 @@ export default function HomePage() {
             )}
           </div>
         )}
-        <div className="mt-4 space-y-3 text-sm text-slate-700">
+        <div className="mt-5 space-y-3 text-sm text-slate-700">
           <VoiceLoadStatus
             loading={voicesLoading}
             error={voicesError}
             voiceCount={voices.length}
             onRetry={() => void loadVoices()}
           />
-          <details className="rounded-xl border border-slate-200 bg-white">
-            <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-slate-700 hover:text-slate-900">
+          <details className="group rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/60">
+            <summary className="flex cursor-pointer select-none items-center justify-between px-5 py-3 text-sm font-medium text-slate-700 transition hover:text-slate-900">
               Advanced: ElevenLabs account &amp; API key
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+                className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180"
+              >
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+              </svg>
             </summary>
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3">
-              <label className="flex max-w-md flex-col gap-1">
-                <span className="font-medium">ElevenLabs account</span>
+            <div className="flex flex-col gap-4 border-t border-slate-100 px-5 py-4">
+              <label className="flex max-w-md flex-col gap-1.5">
+                <span className="font-medium text-slate-800">ElevenLabs account</span>
                 <select
                   value={elevenLabsProfile}
                   onChange={(e) => setElevenLabsProfile(e.target.value as ElevenLabsKeyProfile)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                  className="select-field"
                 >
                   <option value="default">Default</option>
                   <option value="elizabeth">Elizabeth</option>
                 </select>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs leading-relaxed text-slate-500">
                   <strong>Default</strong> uses the server&apos;s <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY</code>.
                   <strong> Elizabeth</strong> uses <code className="rounded bg-slate-100 px-1">ELEVENLABS_API_KEY_ELIZABETH</code> (set on the backend).
                 </span>
               </label>
-              <label className="flex max-w-md flex-col gap-1">
-                <span className="font-medium">ElevenLabs API key (optional)</span>
+              <label className="flex max-w-md flex-col gap-1.5">
+                <span className="font-medium text-slate-800">ElevenLabs API key (optional)</span>
                 <input
                   type="password"
                   value={elevenLabsKey}
                   onChange={(e) => setElevenLabsKey(e.target.value)}
                   placeholder="Overrides account choice for this browser session only"
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  className="input-field"
                 />
-                <span className="text-xs text-slate-500">
+                <span className="text-xs leading-relaxed text-slate-500">
                   If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
                 </span>
               </label>
@@ -392,8 +416,11 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-semibold text-slate-800">1. Add your script</h2>
+      <section className="card mb-6 border-l-4 border-l-indigo-500">
+        <h2 className="step-heading mb-4">
+          <span className="step-badge">1</span>
+          Add your script
+        </h2>
         <InputModeTabs mode={inputMode} onChange={setInputMode} />
         <div className="mt-4">
           {inputMode === "pdf" && (
@@ -420,16 +447,22 @@ export default function HomePage() {
 
       {script && script.lines.length > 0 && (
         <>
-          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-800">2. Review the lines</h2>
+          <section className="card mb-6 border-l-4 border-l-indigo-500">
+            <h2 className="step-heading mb-4">
+              <span className="step-badge">2</span>
+              Review the lines
+            </h2>
             <ScriptReview
               script={script}
               onUpdateLine={updateLine}
               onRemoveLine={removeLine}
             />
           </section>
-          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-800">3. Choose voices</h2>
+          <section className="card mb-6 border-l-4 border-l-indigo-500">
+            <h2 className="step-heading mb-4">
+              <span className="step-badge">3</span>
+              Choose voices
+            </h2>
             <SpeakerVoices
               speakers={speakers}
               voices={voices}
@@ -439,21 +472,24 @@ export default function HomePage() {
               onGlobalStyleChange={setGlobalStyle}
             />
           </section>
-          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-lg font-semibold text-slate-800">4. Generate audio</h2>
-            <p className="mb-2 text-sm text-slate-600">
+          <section className="card mb-6 border-l-4 border-l-teal-500 bg-gradient-to-br from-white to-indigo-50/40">
+            <h2 className="step-heading mb-3">
+              <span className="step-badge bg-teal-600">4</span>
+              Generate audio
+            </h2>
+            <p className="mb-3 text-sm text-slate-600">
               {script.lines.filter((l) => l.text?.trim()).length} lines, ~
               {script.lines
                 .filter((l) => l.text?.trim())
                 .reduce((sum, l) => sum + (l.text?.length ?? 0), 0)}{" "}
               characters — each generation uses API credits.
             </p>
-            <label className="mb-3 flex items-center gap-2 text-sm text-slate-700">
+            <label className="mb-4 flex items-center gap-2.5 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={announceNames}
                 onChange={(e) => setAnnounceNames(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
               />
               Narrator announces speaker names (e.g. “Jin.” before each line)
             </label>
@@ -461,23 +497,28 @@ export default function HomePage() {
               type="button"
               onClick={handleGenerate}
               disabled={generating || generateBlockedReason !== null}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-cta"
             >
-              {generating && (
+              {generating ? (
                 <span
                   aria-hidden
                   className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
                 />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-5 w-5">
+                  <path d="M13.5 4.06c0-1.34-1.6-2-2.53-1.06l-4.28 4.25H4.25A2.25 2.25 0 002 9.5v5a2.25 2.25 0 002.25 2.25h2.44l4.28 4.25c.93.94 2.53.28 2.53-1.06V4.06zM18.58 6.42a.75.75 0 10-1.06 1.06 6.5 6.5 0 010 9.19.75.75 0 101.06 1.06 8 8 0 000-11.31z" />
+                  <path d="M16.46 8.54a.75.75 0 10-1.06 1.06 3.5 3.5 0 010 4.95.75.75 0 101.06 1.06 5 5 0 000-7.07z" />
+                </svg>
               )}
               {generating ? "Generating…" : "Generate Audio"}
             </button>
             {!generating && generateBlockedReason && (
-              <p className="mt-2 text-sm text-slate-500">{generateBlockedReason}</p>
+              <p className="mt-3 text-sm text-slate-500">{generateBlockedReason}</p>
             )}
             {generating && (
-              <div className="mt-3 max-w-md" role="status" aria-live="polite">
-                <div className="h-1.5 overflow-hidden rounded-full bg-indigo-100">
-                  <div className="animate-indeterminate h-full w-1/3 rounded-full bg-indigo-500" />
+              <div className="mt-4 max-w-md" role="status" aria-live="polite">
+                <div className="h-2 overflow-hidden rounded-full bg-indigo-100">
+                  <div className="animate-indeterminate h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 to-teal-500" />
                 </div>
                 <p className="mt-2 text-sm text-slate-600">
                   Generating audio line by line — this may take a minute for longer scripts.
@@ -486,7 +527,7 @@ export default function HomePage() {
               </div>
             )}
             {error && (
-              <p className="mt-2 text-sm text-red-600">{error}</p>
+              <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</p>
             )}
           </section>
         </>
@@ -499,14 +540,20 @@ export default function HomePage() {
       )}
 
       {usage && usage.usage.character_limit !== undefined && (
-        <div className="fixed bottom-3 right-3 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-700 shadow-sm">
-          <span className="font-semibold">ElevenLabs credits:</span>{" "}
+        <div className="fixed bottom-3 right-3 rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2 text-xs text-slate-700 shadow-md shadow-slate-200/60 backdrop-blur-sm">
+          <span className="font-semibold text-indigo-700">ElevenLabs credits:</span>{" "}
           {usage.usage.character_remaining} / {usage.usage.character_limit} characters left
         </div>
       )}
 
-      <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-400">
-        <Link href="/metrics" className="hover:text-slate-600 hover:underline">
+      <footer className="mt-14 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-5 pb-2 text-xs text-slate-400">
+        <span>
+          Made for ESOL teachers — turn any dialogue into classroom-ready audio.
+        </span>
+        <Link
+          href="/metrics"
+          className="rounded-md px-1 py-0.5 transition hover:text-indigo-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
           Usage metrics
         </Link>
       </footer>

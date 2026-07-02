@@ -2,8 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   ESOL Scripts design tokens — warm, approachable palette for educators.
+   Primary: warm indigo. Accent: teal. Background: warm paper-white gradient.
+--------------------------------------------------------------------------- */
+:root {
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --surface: #ffffff;
+  --ink: #1e293b;
+}
+
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply text-slate-800 antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background-color: #f6f5f2;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.1), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(20, 184, 166, 0.07), transparent);
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+}
+
+@layer components {
+  /* --- Cards ------------------------------------------------------------ */
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60 transition-shadow duration-200;
+  }
+  .card:hover {
+    @apply shadow-md shadow-slate-200/70;
+  }
+
+  .step-badge {
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white shadow-sm;
+  }
+
+  .step-heading {
+    @apply flex items-center gap-3 text-lg font-semibold text-slate-900;
+  }
+
+  /* --- Buttons ----------------------------------------------------------- */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition
+      hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/25
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600
+      active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition
+      hover:border-slate-400 hover:bg-slate-50
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600
+      active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-cta {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-3 text-base font-semibold text-white shadow-md shadow-indigo-600/30 transition
+      hover:from-indigo-700 hover:to-indigo-600 hover:shadow-lg hover:shadow-indigo-600/30
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600
+      active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none;
+  }
+
+  /* --- Inputs ------------------------------------------------------------ */
+  .input-field {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition
+      placeholder:text-slate-400
+      hover:border-slate-400
+      focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20
+      disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+  }
+
+  .select-field {
+    @apply rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition
+      hover:border-slate-400
+      focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20;
+  }
+
+  /* --- Status pills ------------------------------------------------------- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium;
+  }
 }
 
 /* Indeterminate progress bar used while audio is generating. */

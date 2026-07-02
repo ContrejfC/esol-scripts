@@ -62,7 +62,13 @@ export default function MetricsPage() {
 
   return (
     <main className="mx-auto max-w-lg px-4 py-10 text-slate-800">
-      <h1 className="text-xl font-bold">ESOL Scripts — usage</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+        ESOL{" "}
+        <span className="bg-gradient-to-r from-indigo-600 to-teal-600 bg-clip-text text-transparent">
+          Scripts
+        </span>{" "}
+        — usage
+      </h1>
       <p className="mt-2 text-sm text-slate-600">
         Summary numbers below are for the <strong>current server process</strong> only and reset when the process restarts.
         The chart uses persisted daily totals (UTC dates) when the server disk is available—on some hosts storage is wiped on
@@ -73,7 +79,7 @@ export default function MetricsPage() {
       {error && <p className="mt-6 text-sm text-red-600">{error}</p>}
 
       {!loading && daily && !dailyError && (
-        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-4">
+        <section className="mt-8 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-slate-800">Activity by day</h2>
             <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -81,7 +87,7 @@ export default function MetricsPage() {
               <select
                 value={chartDays}
                 onChange={(e) => setChartDays(Number(e.target.value))}
-                className="rounded border border-slate-300 bg-white px-2 py-1 font-medium text-slate-800"
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-medium text-slate-800 shadow-sm transition hover:border-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               >
                 {RANGE_OPTIONS.map((n) => (
                   <option key={n} value={n}>
@@ -102,7 +108,7 @@ export default function MetricsPage() {
       )}
 
       {!loading && data && (
-        <dl className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <dl className="mt-6 space-y-3 rounded-2xl border border-slate-200/80 bg-white p-5 text-sm shadow-sm shadow-slate-200/60">
           <div className="flex justify-between gap-4">
             <dt className="text-slate-600">Page loads (counted)</dt>
             <dd className="font-mono font-medium">{data.page_views_total}</dd>
@@ -126,11 +132,14 @@ export default function MetricsPage() {
         <button
           type="button"
           onClick={() => void load()}
-          className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium hover:bg-slate-100"
+          className="btn-secondary"
         >
           Refresh
         </button>
-        <Link href="/" className="rounded-lg text-sm text-indigo-600 underline">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-lg px-2 py-2 text-sm font-medium text-indigo-600 transition hover:text-indigo-800 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
           Back to app
         </Link>
       </div>
