@@ -148,19 +148,39 @@ export async function listVoices(opts?: {
   elevenLabsApiKey?: string;
   elevenLabsProfile?: ElevenLabsKeyProfile;
 }): Promise<{ voices: VoiceOption[] }> {
+  const headers = buildElevenLabsHeaders({
+    profile: opts?.elevenLabsProfile ?? "default",
+    overrideKey: opts?.elevenLabsApiKey,
+  });
+  const controller = new AbortController();
+  const timeoutMs = 90_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const headers = buildElevenLabsHeaders({
-      profile: opts?.elevenLabsProfile ?? "default",
-      overrideKey: opts?.elevenLabsApiKey,
-    });
     const res = await fetch(`${API_BASE}/voices`, {
       headers: Object.keys(headers).length ? headers : undefined,
+      signal: controller.signal,
     });
-    if (!res.ok) throw new Error("Failed to load voices");
-    return res.json();
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || `Failed to load voices (HTTP ${res.status})`);
+    }
+    const data = (await res.json()) as { voices: VoiceOption[] };
+    if (!data.voices?.length) {
+      throw new Error(
+        "No ElevenLabs voices returned. Check ELEVENLABS_API_KEY on the server (or the Elizabeth profile key).",
+      );
+    }
+    return data;
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error(
+        "Loading voices timed out. The hosted API may be waking up—wait 30 seconds and try again.",
+      );
+    }
     if (isNetworkError(e)) throw new Error(BACKEND_UNREACHABLE_MSG);
     throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

@@ -23,7 +23,7 @@ export default function SpeakerVoices({
   const previewAudioRef = useRef<HTMLAudioElement>(null);
 
   const getVoice = (speaker: string) =>
-    assignments.find((a) => a.speaker === speaker)?.voice_id ?? voices[0]?.id ?? "alloy";
+    assignments.find((a) => a.speaker === speaker)?.voice_id ?? voices[0]?.id ?? "";
   const getStyle = (speaker: string) =>
     assignments.find((a) => a.speaker === speaker)?.style ?? globalStyle;
 

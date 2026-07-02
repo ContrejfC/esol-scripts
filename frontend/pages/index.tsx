@@ -45,8 +45,35 @@ function connectedApiMessage(): string {
 
 function uniqueSpeakersFromLines(lines: { speaker: string }[]): string[] {
   const set = new Set<string>();
-  lines.forEach((l) => set.add(l.speaker.trim()).add(l.speaker));
-  return Array.from(set).filter(Boolean).sort();
+  lines.forEach((l) => {
+    const trimmed = l.speaker.trim();
+    if (trimmed) set.add(trimmed);
+  });
+  return Array.from(set).sort();
+}
+
+function buildSpeakerAssignments(
+  speakers: string[],
+  voices: VoiceOption[],
+  prev: VoiceAssignment[],
+): VoiceAssignment[] {
+  if (voices.length === 0) return [];
+  const validIds = new Set(voices.map((v) => v.id));
+  const defaultId = voices[0].id;
+  return speakers.map((sp) => {
+    const existing = prev.find((a) => a.speaker === sp);
+    const voice_id =
+      existing && validIds.has(existing.voice_id) ? existing.voice_id : defaultId;
+    return {
+      speaker: sp,
+      voice_id,
+      style: existing?.style ?? "normal",
+    };
+  });
+}
+
+function voiceIdsKey(voices: VoiceOption[]): string {
+  return voices.map((v) => v.id).join(",");
 }
 
 export default function HomePage() {
@@ -73,6 +100,34 @@ export default function HomePage() {
   const [announceNames, setAnnounceNames] = useState(true);
   const [elevenLabsKey, setElevenLabsKey] = useState("");
   const [elevenLabsProfile, setElevenLabsProfile] = useState<ElevenLabsKeyProfile>("default");
+  const [voicesLoading, setVoicesLoading] = useState(true);
+  const [voicesError, setVoicesError] = useState<string | null>(null);
+
+  const loadVoices = useCallback(async () => {
+    setVoicesLoading(true);
+    setVoicesError(null);
+    const opts = {
+      elevenLabsApiKey: elevenLabsKey || undefined,
+      elevenLabsProfile,
+    };
+    let lastError = "Could not load voices.";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await listVoices(opts);
+        setVoices(r.voices);
+        setVoicesLoading(false);
+        return;
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 3000 * (attempt + 1)));
+        }
+      }
+    }
+    setVoices([]);
+    setVoicesError(lastError);
+    setVoicesLoading(false);
+  }, [elevenLabsKey, elevenLabsProfile]);
 
   useEffect(() => {
     checkConnection().then(setConnectionStatus);
@@ -83,32 +138,20 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    listVoices({
-      elevenLabsApiKey: elevenLabsKey || undefined,
-      elevenLabsProfile,
-    })
-      .then((r) => setVoices(r.voices))
-      .catch(() => setVoices([{ id: "alloy", name: "Alloy" }]));
+    void loadVoices();
 
-    // Fetch usage info in the background; best-effort only.
     getUsage({
       elevenLabsApiKey: elevenLabsKey || undefined,
       elevenLabsProfile,
     })
       .then((u) => setUsage(u))
       .catch(() => setUsage(null));
-  }, [elevenLabsKey, elevenLabsProfile]);
+  }, [loadVoices, elevenLabsKey, elevenLabsProfile]);
 
   useEffect(() => {
-    if (!script?.speakers?.length) return;
-    setAssignments((prev) => {
-      const next = script.speakers.map((sp) => {
-        const existing = prev.find((a) => a.speaker === sp);
-        return existing ?? { speaker: sp, voice_id: voices[0]?.id ?? "alloy", style: "normal" as const };
-      });
-      return next;
-    });
-  }, [script?.speakers?.join(","), voices.length]);
+    if (!script?.speakers?.length || voices.length === 0) return;
+    setAssignments((prev) => buildSpeakerAssignments(script.speakers, voices, prev));
+  }, [script?.speakers?.join(","), voiceIdsKey(voices)]);
 
   const handlePdfUpload = useCallback(async (file: File) => {
     setInputError(null);
@@ -118,13 +161,7 @@ export default function HomePage() {
       setScript(s);
       setPasteValue("");
       const speakers = uniqueSpeakersFromLines(s.lines);
-      setAssignments((prev) => {
-        const next = speakers.map((sp) => {
-          const existing = prev.find((a) => a.speaker === sp);
-          return existing ?? { speaker: sp, voice_id: voices[0]?.id ?? "alloy", style: "normal" as const };
-        });
-        return next;
-      });
+      setAssignments((prev) => buildSpeakerAssignments(speakers, voices, prev));
     } catch (e) {
       setInputError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -139,13 +176,7 @@ export default function HomePage() {
       const { script: s } = await parseText(pasteValue, pasteTitle);
       setScript(s);
       const speakers = uniqueSpeakersFromLines(s.lines);
-      setAssignments((prev) => {
-        const next = speakers.map((sp) => {
-          const existing = prev.find((a) => a.speaker === sp);
-          return existing ?? { speaker: sp, voice_id: voices[0]?.id ?? "alloy", style: "normal" as const };
-        });
-        return next;
-      });
+      setAssignments((prev) => buildSpeakerAssignments(speakers, voices, prev));
     } catch (e) {
       setInputError(e instanceof Error ? e.message : "Parse failed");
     } finally {
@@ -201,6 +232,25 @@ export default function HomePage() {
       setError("No lines have text. Add content before generating.");
       return;
     }
+    if (voicesLoading) {
+      setError("Still loading voices. Please wait a moment and try again.");
+      return;
+    }
+    if (voices.length === 0) {
+      setError(
+        voicesError ??
+          "Voices are not loaded yet. Wait for the API to wake up, then click Retry voices below.",
+      );
+      return;
+    }
+    const validVoiceIds = new Set(voices.map((v) => v.id));
+    const badAssignment = assignments.find((a) => !validVoiceIds.has(a.voice_id));
+    if (badAssignment) {
+      setError(
+        `Invalid voice for "${badAssignment.speaker}". Pick a voice from the dropdown (not a placeholder).`,
+      );
+      return;
+    }
     isGeneratingRef.current = true;
     setError(null);
     setAudioId(null);
@@ -225,7 +275,7 @@ export default function HomePage() {
       setLoading(false);
       isGeneratingRef.current = false;
     }
-  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, elevenLabsProfile]);
+  }, [script, assignments, globalStyle, announceNames, elevenLabsKey, elevenLabsProfile, voices, voicesLoading, voicesError]);
 
   const speakers = script ? uniqueSpeakersFromLines(script.lines) : [];
 
@@ -287,6 +337,26 @@ export default function HomePage() {
               If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
             </span>
           </label>
+          <div className="max-w-md text-sm">
+            {voicesLoading && (
+              <p className="text-slate-600">Loading ElevenLabs voices… (hosted API may take up to a minute on first load)</p>
+            )}
+            {!voicesLoading && voicesError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                <p>{voicesError}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadVoices()}
+                  className="mt-2 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium hover:bg-amber-100"
+                >
+                  Retry voices
+                </button>
+              </div>
+            )}
+            {!voicesLoading && !voicesError && voices.length > 0 && (
+              <p className="text-green-700">{voices.length} voices loaded.</p>
+            )}
+          </div>
         </div>
       </header>
 
