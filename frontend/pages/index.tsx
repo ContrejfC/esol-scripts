@@ -7,6 +7,7 @@ import PasteScript, { SAMPLE_SCRIPT } from "../app/components/PasteScript";
 import ScriptReview from "../app/components/ScriptReview";
 import SpeakerVoices from "../app/components/SpeakerVoices";
 import AudioOutput from "../app/components/AudioOutput";
+import VoiceLoadStatus from "../app/components/VoiceLoadStatus";
 import {
   uploadPdf,
   parseText,
@@ -18,6 +19,7 @@ import {
   recordPageView,
   type ElevenLabsKeyProfile,
 } from "../app/lib/api";
+import { voiceLoadHelpForError } from "../app/lib/voiceLoadHelp";
 import type { ParsedScript, VoiceOption, VoiceAssignment, ReadingStyle } from "../app/lib/types";
 
 type InputMode = "pdf" | "paste";
@@ -237,10 +239,10 @@ export default function HomePage() {
       return;
     }
     if (voices.length === 0) {
-      setError(
-        voicesError ??
-          "Voices are not loaded yet. Wait for the API to wake up, then click Retry voices below.",
+      const help = voiceLoadHelpForError(
+        voicesError ?? "Voices are not loaded yet.",
       );
+      setError(`${help.headline} ${help.steps[0]}`);
       return;
     }
     const validVoiceIds = new Set(voices.map((v) => v.id));
@@ -337,26 +339,12 @@ export default function HomePage() {
               If set, this key is used instead of Default or Elizabeth for voices, usage, and generation.
             </span>
           </label>
-          <div className="max-w-md text-sm">
-            {voicesLoading && (
-              <p className="text-slate-600">Loading ElevenLabs voices… (hosted API may take up to a minute on first load)</p>
-            )}
-            {!voicesLoading && voicesError && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                <p>{voicesError}</p>
-                <button
-                  type="button"
-                  onClick={() => void loadVoices()}
-                  className="mt-2 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium hover:bg-amber-100"
-                >
-                  Retry voices
-                </button>
-              </div>
-            )}
-            {!voicesLoading && !voicesError && voices.length > 0 && (
-              <p className="text-green-700">{voices.length} voices loaded.</p>
-            )}
-          </div>
+          <VoiceLoadStatus
+            loading={voicesLoading}
+            error={voicesError}
+            voiceCount={voices.length}
+            onRetry={() => void loadVoices()}
+          />
         </div>
       </header>
 
